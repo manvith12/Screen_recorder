@@ -7,6 +7,7 @@ from PIL import Image, ImageTk
 import json
 import time
 from plyer import notification
+import threading
 
 class ScreenRecorder:
     def __init__(self, master):
@@ -30,6 +31,7 @@ class ScreenRecorder:
 
         self.create_widgets()
         self.load_settings()
+        self.timer = None
 
     def create_widgets(self):
         background_label = Label(self.master, image=self.background_image)
@@ -115,6 +117,8 @@ class ScreenRecorder:
             self.stop_button.config(state=NORMAL)
 
             self.recording_loop()
+            self.timer = threading.Timer(1/self.frame_rate, self.capture_screenshot)
+            self.timer.start()
 
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {str(e)}")
@@ -188,6 +192,20 @@ class ScreenRecorder:
             self.stop_button.config(state=DISABLED)
 
             self.save_settings()
+            if self.timer:
+                self.timer.cancel()
+    def capture_screenshot(self):
+        if not self.paused:
+            img = pyautogui.screenshot()
+            frame = np.array(img)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            if self.video is not None:
+                self.video.write(frame)
+
+            # Schedule the next screenshot capture
+            self.timer = threading.Timer(1/self.frame_rate, self.capture_screenshot)
+            self.timer.start()
 
     def cleanup_after_error(self):
         if self.video:
